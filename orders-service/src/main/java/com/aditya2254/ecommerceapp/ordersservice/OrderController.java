@@ -13,10 +13,7 @@ import feign.FeignException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,6 +32,8 @@ public class OrderController {
 
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private OrdersRepository ordersRepository;
 
     // OrderController.java
     @PostMapping(path = "/orders")
@@ -80,6 +79,16 @@ public class OrderController {
         // 3. Create orders
         Orders orders = orderService.createOrder(userId, orderItems);
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(orders, "success","Order created successfully"));
+    }
+
+    @GetMapping(path = "/orders")
+    public ResponseEntity<List<Orders>> getOrders() {
+        return ResponseEntity.ok(ordersRepository.findAll());
+    }
+
+    @GetMapping(path = "/orders/{id}")
+    public ResponseEntity<Orders> getOrderById(@PathVariable("id") Long orderId) {
+        return ordersRepository.findById(orderId).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     private OrderResponse toResponse(Orders orders, String status, String message) {
