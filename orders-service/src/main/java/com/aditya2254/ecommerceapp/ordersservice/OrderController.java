@@ -45,22 +45,19 @@ public class OrderController {
 
         // 1. Verify products exist and get prices
             List<OrderItems> orderItems;
+            List<OrderItemRequest> currentItem = new java.util.ArrayList<>();
                     try{
                         orderItems = request.getItems().stream()
                         .map(item -> {
+                            currentItem.add(item);
                             ProductDTO product = productClient.getProduct(item.getProductId());
                             return new OrderItems(product.id(), item.getQuantity(), product.price());
                         }).toList();
                     }catch (FeignException e){
                         String responseBody = e.contentUTF8();
-                        CustomResponse<String> customResponse;
-                        try {
-                            customResponse = objectMapper.readValue(responseBody, new TypeReference<CustomResponse<String>>() {
-                            });
-                        } catch (JsonProcessingException ex) {
-                            customResponse = new CustomResponse<>(responseBody.isEmpty() ? e.getMessage() : responseBody);
-                        }
-                        return ResponseEntity.status(e.status()).body(toResponse(null, "failed", customResponse.getMessage()));
+                        return ResponseEntity.status(e.status()).body(toResponse(null,
+                                "failed",
+                                "Error: Product not found for id: %s".formatted(currentItem.isEmpty() ? "null" : currentItem.get(currentItem.size() - 1).getProductId().toString())));
                     }
 
         // 2. Reserve inventory

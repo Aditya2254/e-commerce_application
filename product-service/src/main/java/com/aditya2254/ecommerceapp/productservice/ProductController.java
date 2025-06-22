@@ -28,16 +28,16 @@ public class ProductController {
     }
 
     @GetMapping(path = "/products/{id}")
-    public ResponseEntity<CustomResponse> getProduct(@PathVariable Long id) {
-//        return productRepository.findById(id)
-//                .map(ResponseEntity::ok)
-//                .orElse(ResponseEntity.notFound().build());
-        Optional<Product> product = productRepository.findById(id);
+    public ResponseEntity<Product> getProduct(@PathVariable Long id) {
+        return productRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+        /*Optional<Product> product = productRepository.findById(id);
         if (product.isPresent()) {
-            return buildCustomResponse("Success: Product found",product, HttpStatus.OK);
+            return buildCustomResponse("Success: Product found", product.get(), HttpStatus.OK);
         } else {
             return buildCustomResponse("Error: Product not found for productId: %d".formatted(id), HttpStatus.NOT_FOUND);
-        }
+        }*/
     }
 
 
