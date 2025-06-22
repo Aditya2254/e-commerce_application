@@ -8,7 +8,6 @@ import com.aditya2254.ecommerceapp.ordersservice.dto.InventoryReservationRequest
 import com.aditya2254.ecommerceapp.ordersservice.dto.ProductDTO;
 import com.aditya2254.ecommerceapp.ordersservice.entity.Orders;
 import com.aditya2254.ecommerceapp.ordersservice.entity.OrderItems;
-import com.aditya2254.ecommerceapp.ordersservice.exceptions.OrderFailedException;
 import com.aditya2254.ecommerceapp.ordersservice.services.OrderService;
 import feign.FeignException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,7 +53,6 @@ public class OrderController {
                             return new OrderItems(product.id(), item.getQuantity(), product.price());
                         }).toList();
                     }catch (FeignException e){
-                        String responseBody = e.contentUTF8();
                         return ResponseEntity.status(e.status()).body(toResponse(null,
                                 "failed",
                                 "Error: Product not found for id: %s".formatted(currentItem.isEmpty() ? "null" : currentItem.get(currentItem.size() - 1).getProductId().toString())));
