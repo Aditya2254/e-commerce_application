@@ -12,9 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 public class ProductController {
@@ -79,8 +77,10 @@ public class ProductController {
             }
             return buildCustomResponse("Success: Inventory reserved successfully", HttpStatus.OK);
         } catch (ProductNotFoundException e) {
+            rollbackFailedItems(request.items().entrySet(), productId);
             return buildCustomResponse("Product not found for productId: %d".formatted(productId), HttpStatus.NOT_FOUND);
         } catch (InsufficientStockException e) {
+            rollbackFailedItems(request.items().entrySet(), productId);
             return buildCustomResponse("Error: Not enough stock available for productId: %d".formatted(productId), HttpStatus.BAD_REQUEST);
         }
     }
@@ -92,6 +92,22 @@ public class ProductController {
             throw new InsufficientStockException();
         }
         product.setStock(product.getStock() - quantity);
+        productRepository.save(product);
+    }
+
+    private void rollbackFailedItems(Set<Map.Entry<Long, Integer>> entries, Long productId) {
+        for (Map.Entry<Long, Integer> entry : entries){
+            if (productId.equals(entry.getKey())) {
+                break;
+            }
+            rollBackInventory(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private void rollBackInventory(Long productId, Integer quantity) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(ProductNotFoundException::new);
+        product.setStock(product.getStock() + quantity);
         productRepository.save(product);
     }
 
