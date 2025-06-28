@@ -8,9 +8,16 @@ import com.aditya2254.ecommerceapp.userservice.entity.User;
 import com.aditya2254.ecommerceapp.userservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Service class for handling authentication operations.
@@ -96,17 +103,27 @@ public class AuthService {
      * @return an AuthResponse containing the access and refresh tokens
      * @throws org.springframework.security.core.AuthenticationException if authentication fails
      */
+    // AuthService.java - update token generation
     public AuthResponse authenticate(AuthRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()
-                )
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getUsername(),
+                            request.getPassword()
+                    )
+            );
+        } catch (BadCredentialsException e) {
+            throw new BadCredentialsException("Invalid username or password");
+        }
         var user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow();
 
-        var jwtToken = jwtService.generateToken(user);
+        // Create claims with user ID
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId());
+        claims.put("roles", List.of(user.getRole().name()));
+
+        var jwtToken = jwtService.generateToken(claims, user);
         var refreshToken = jwtService.generateRefreshToken(user);
 
         return AuthResponse.builder()

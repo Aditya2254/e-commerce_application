@@ -1,6 +1,6 @@
 package com.aditya2254.ecommerceapp.userservice.service;
 
-import com.aditya2254.ecommerceapp.userservice.dto.UserProfileResponse;
+import com.aditya2254.ecommerceapp.userservice.dto.UserDTO;
 import com.aditya2254.ecommerceapp.userservice.entity.User;
 import com.aditya2254.ecommerceapp.userservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +8,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * Service class for handling user-related operations.
@@ -63,15 +65,15 @@ public class UserService implements UserDetailsService {
      * @return a UserProfileResponse containing the user's profile information
      * @throws UsernameNotFoundException if the user is not found
      */
-    public UserProfileResponse getUserProfile(String username) {
+    public UserDTO getUserProfile(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        return UserProfileResponse.builder()
+        return UserDTO.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
-                .role(user.getRole().name())
+                .roles(List.of(user.getRole().name()))
                 .build();
     }
 }

@@ -1,6 +1,8 @@
 package com.aditya2254.ecommerceapp.userservice.config;
 
 import com.aditya2254.ecommerceapp.userservice.filter.JwtAuthFilter;
+import com.aditya2254.ecommerceapp.userservice.util.CustomAccessDeniedHandler;
+import com.aditya2254.ecommerceapp.userservice.util.CustomAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -53,6 +55,10 @@ public class SecurityConfig {
      */
     private final UserDetailsService userDetailsService;
 
+    private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+
+    private final CustomAccessDeniedHandler customAccessDeniedHandler;
+
     /**
      * Configures the security filter chain.
      * 
@@ -75,6 +81,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Allow public access to authentication endpoints
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/users/**").permitAll()
                         // Require authentication for all other endpoints
                         .anyRequest().authenticated()
                 )
@@ -85,6 +92,10 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 // Add the JWT filter before the standard authentication filter
                 .addFilterBefore(authFilter, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(handling -> handling
+                        .authenticationEntryPoint(customAuthenticationEntryPoint)
+                        .accessDeniedHandler(customAccessDeniedHandler)
+                )
                 .build();
     }
 

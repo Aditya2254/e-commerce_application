@@ -1,6 +1,6 @@
 package com.aditya2254.ecommerceapp.userservice.controller;
 
-import com.aditya2254.ecommerceapp.userservice.dto.UserProfileResponse;
+import com.aditya2254.ecommerceapp.userservice.dto.UserDTO;
 import com.aditya2254.ecommerceapp.userservice.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -52,9 +52,13 @@ public class UserController {
      * @return a ResponseEntity containing the user's profile information
      */
     @GetMapping("/profile")
-    public ResponseEntity<UserProfileResponse> getUserProfile() {
+    public ResponseEntity<UserDTO> getUserProfile() {
         // Get the current authentication from the security context
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if(authentication.isAuthenticated() == false || authentication.getPrincipal() == null) {
+            throw new IllegalStateException("User is not authenticated");
+        }
 
         // Extract the username from the authentication object
         String username = authentication.getName();

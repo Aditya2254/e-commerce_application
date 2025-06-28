@@ -158,7 +158,7 @@ public class JwtService {
      * @param token the JWT token to check
      * @return true if the token has expired, false otherwise
      */
-    private boolean isTokenExpired(String token) {
+    public boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
 
@@ -178,7 +178,7 @@ public class JwtService {
      * @param token the JWT token
      * @return all claims contained in the token
      */
-    private Claims extractAllClaims(String token) {
+    public Claims extractAllClaims(String token) {
         return Jwts
                 .parserBuilder()
                 .setSigningKey(getSignInKey())

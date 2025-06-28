@@ -1,6 +1,8 @@
 package com.aditya2254.ecommerceapp.userservice.filter;
 
+import com.aditya2254.ecommerceapp.userservice.exceptions.TokenExpiredException;
 import com.aditya2254.ecommerceapp.userservice.service.JwtService;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -86,7 +88,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // Extract the JWT token (remove "Bearer " prefix)
         jwt = authHeader.substring(7);
         // Extract the username from the token
-        username = jwtService.extractUsername(jwt);
+        try {
+            username = jwtService.extractUsername(jwt);
+        } catch (ExpiredJwtException e) {
+            throw new TokenExpiredException("Token has expired");
+        }
 
         // If the username was successfully extracted and the user is not already authenticated
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
