@@ -1,27 +1,16 @@
 package com.aditya2254.ecommerceapp.userservice.controller;
 
-import com.aditya2254.ecommerceapp.userservice.dto.*;
-import com.aditya2254.ecommerceapp.userservice.entity.User;
-import com.aditya2254.ecommerceapp.userservice.exceptions.InvalidTokenException;
-import com.aditya2254.ecommerceapp.userservice.exceptions.TokenExpiredException;
-import com.aditya2254.ecommerceapp.userservice.exceptions.UserNotFoundException;
-import com.aditya2254.ecommerceapp.userservice.repository.UserRepository;
+import com.aditya2254.ecommerceapp.userservice.dto.AuthRequest;
+import com.aditya2254.ecommerceapp.userservice.dto.AuthResponse;
+import com.aditya2254.ecommerceapp.userservice.dto.RefreshTokenRequest;
+import com.aditya2254.ecommerceapp.userservice.dto.RegisterRequest;
 import com.aditya2254.ecommerceapp.userservice.service.AuthService;
-import com.aditya2254.ecommerceapp.userservice.service.JwtService;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * REST controller for handling authentication-related HTTP requests.
@@ -49,10 +38,6 @@ public class AuthController {
      * Service for handling authentication operations.
      */
     private final AuthService authService;
-
-    private final JwtService jwtService;
-
-    private final UserRepository userRepository;
 
     /**
      * Endpoint for registering a new user.
@@ -86,15 +71,10 @@ public class AuthController {
      * @return a ResponseEntity containing the authentication tokens (access and refresh)
      */
     @PostMapping("/login")
-    public ResponseEntity<?> authenticate(@RequestBody AuthRequest request) {
-        try {
-            return ResponseEntity.ok(authService.authenticate(request));
-        } catch (BadCredentialsException e) {
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Authentication failed");
-            error.put("message", "Invalid username or password");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
-        }
+    public ResponseEntity<AuthResponse> authenticate(
+            @RequestBody AuthRequest request
+    ) {
+        return ResponseEntity.ok(authService.authenticate(request));
     }
 
     /**
@@ -115,30 +95,4 @@ public class AuthController {
     ) {
         return ResponseEntity.ok(authService.refreshToken(request.getRefreshToken()));
     }
-
-    /*@GetMapping("/validate")
-    public ResponseEntity<UserDTO> validateToken(@RequestHeader("Authorization") String tokenHeader) {
-        if (tokenHeader == null || !tokenHeader.startsWith("Bearer ")) {
-            throw new InvalidTokenException("Missing or invalid Authorization header");
-        }
-
-        String jwt = tokenHeader.replace("Bearer ", "");
-
-        try {
-            Claims claims = jwtService.extractAllClaims(jwt);
-
-            // Check expiration
-            if (claims.getExpiration().before(new Date())) {
-                throw new TokenExpiredException("Token has expired");
-            }
-
-            // Get user ID from claims
-            Long userId = claims.get("userId", Long.class);
-            String roles = claims.get("roles", String.class);
-
-            return ResponseEntity.ok(new UserDTO(userId, List.of(roles)));
-        } catch (JwtException | IllegalArgumentException e) {
-            throw new InvalidTokenException("Invalid token: " + e.getMessage());
-        }
-    }*/
 }

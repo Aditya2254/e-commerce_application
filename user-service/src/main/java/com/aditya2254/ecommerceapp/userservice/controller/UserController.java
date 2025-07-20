@@ -3,6 +3,8 @@ package com.aditya2254.ecommerceapp.userservice.controller;
 import com.aditya2254.ecommerceapp.userservice.dto.UserDTO;
 import com.aditya2254.ecommerceapp.userservice.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,6 +35,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
     /**
+     * Logger for logging user-related operations.
+     */
+    Logger log = LoggerFactory.getLogger(UserController.class);
+    /**
      * Service for handling user-related operations.
      */
     private final UserService userService;
@@ -53,6 +59,8 @@ public class UserController {
      */
     @GetMapping("/profile")
     public ResponseEntity<UserDTO> getUserProfile() {
+
+        log.info("Retrieving user profile");
         // Get the current authentication from the security context
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
