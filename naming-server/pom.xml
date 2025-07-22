@@ -12,7 +12,7 @@
     <artifactId>naming-server</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>naming-server</name>
-    <description>naming-server</description>
+    <description>e-commerce-application</description>
     <url/>
     <licenses>
         <license/>
@@ -69,6 +69,29 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>3.4.0</version>
+                <configuration>
+                    <from>
+                        <image>eclipse-temurin:21-jre</image> <!-- Updated to Java 21 -->
+                        <platforms>
+                            <platform>
+                                <architecture>amd64</architecture>
+                                <os>linux</os>
+                            </platform>
+                            <platform>
+                                <architecture>arm64</architecture>
+                                <os>linux</os>
+                            </platform>
+                        </platforms>
+                    </from>
+                    <to>
+                        <image>aditya2254/e-commerce-${project.artifactId}:${project.version}</image>
+                    </to>
+                </configuration>
             </plugin>
         </plugins>
     </build>

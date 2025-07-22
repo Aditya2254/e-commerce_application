@@ -20,11 +20,11 @@ public class GlobalAuthFilter implements GlobalFilter, Ordered {
     private static final Logger log = LoggerFactory.getLogger(GlobalAuthFilter.class);
     private final TokenValidationService tokenValidationService;
     private static final String[] PUBLIC_PATHS = {
-            "/api/auth/register",
-            "/api/auth/login",
-            "/api/auth/refresh",
-            "/api/auth/validate",
-            "/api/users/profile"
+            "/user-service/api/auth/register",
+            "/user-service/api/auth/login",
+            "/user-service/api/auth/refresh",
+            "/user-service/api/auth/validate",
+            "/user-service/api/users/profile"
     };
 
     public GlobalAuthFilter(TokenValidationService tokenValidationService) {
