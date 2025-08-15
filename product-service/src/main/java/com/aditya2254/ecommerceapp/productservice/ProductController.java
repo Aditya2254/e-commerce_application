@@ -85,6 +85,21 @@ public class ProductController {
         }
     }
 
+    @PostMapping("/products/rollback")
+    public ResponseEntity<CustomResponse> rollbackInventory(@RequestBody InventoryReservationRequest request) {
+        if (request.items().isEmpty()) {
+            return buildCustomResponse("No items to rollback", HttpStatus.BAD_REQUEST);
+        }
+        try {
+            for (Map.Entry<Long, Integer> entry : request.items().entrySet()) {
+                rollBackInventory(entry.getKey(), entry.getValue());
+            }
+            return buildCustomResponse("Success: Inventory rolled back successfully", HttpStatus.OK);
+        } catch (ProductNotFoundException e) {
+            return buildCustomResponse("Error: Product not found for rollback", HttpStatus.NOT_FOUND);
+        }
+    }
+
     private void reserveProductInventory(Long productId, Integer quantity) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(ProductNotFoundException::new);

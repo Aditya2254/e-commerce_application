@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -77,8 +78,34 @@ public class OrderController {
         }
 
         // 3. Create orders
-        Orders orders = orderService.createOrder(userId, orderItems);
+        Orders orders = orderService.createOrder(userId, orderItems, request.getShippingAddress(), request.getPaymentMethodId());
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(orders, "success","Order created successfully"));
+    }
+
+    @PutMapping(path = "/orders/modify")
+    public ResponseEntity<OrderResponse> cancelOrder(
+            @RequestBody Orders orders,
+            @RequestHeader("X-User-ID") String userId) throws Exception {
+
+        // Check if the order exists
+        Orders existingOrder = ordersRepository.findById(orders.getOrderId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        // Check if the user ID matches
+        if (!existingOrder.getUserId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(toResponse(null, "failed", "You are not authorized to modify this order"));
+        }
+        // Check if the order is already cancelled or completed
+        if (!"Active".equalsIgnoreCase(existingOrder.getStatus())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(toResponse(existingOrder, "failed", "Order is already "+ existingOrder.getStatus()));
+        }
+
+        try{
+            Orders modifiedOrder =  orderService.modifyOrder(orders);
+            return ResponseEntity.status(HttpStatus .OK).body(toResponse(modifiedOrder, "success", "Order modified successfully"));
+        }catch (ResponseStatusException e){
+            return ResponseEntity.status(e.getStatusCode()).body(toResponse(null, "failed", e.getReason()));
+        }
+
     }
 
     @GetMapping(path = "/orders")

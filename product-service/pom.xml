@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.Aditya2254.e-commerce-app</groupId>
 	<artifactId>product-service</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.15-SNAPSHOT</version>
 	<name>product-service</name>
 	<description>e-commerce-application</description>
 	<url/>

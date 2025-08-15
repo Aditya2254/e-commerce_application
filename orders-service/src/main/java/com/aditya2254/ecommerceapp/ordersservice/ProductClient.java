@@ -19,4 +19,7 @@ public interface ProductClient {
     @PostMapping("/products/reserve")
     CustomResponse reserveInventory(@RequestBody InventoryReservationRequest request);
 
+    @PostMapping("/products/rollback")
+    CustomResponse rollbackInventory(@RequestBody InventoryReservationRequest request);
+
 }
