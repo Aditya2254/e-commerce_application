@@ -1,0 +1,109 @@
+version: "3.8"  
+
+services:
+  mysql-db:
+    image: mysql:8.0
+    container_name: mysql-db
+    mem_limit: 512m
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    networks:
+      - e-commerce-network
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+  naming-server:
+    image: aditya2254/e-commerce-naming-server:0.0.1-SNAPSHOT
+    container_name: naming-server
+    mem_limit: 700m
+    ports:
+      - "8761:8761"
+    networks:
+      - e-commerce-network
+
+  product-service:
+    image: aditya2254/e-commerce-product-service:0.0.15-SNAPSHOT
+    container_name: product-service
+    mem_limit: 700m
+    ports:
+      - "8000:8000"
+    networks:
+      - e-commerce-network
+    depends_on:
+      naming-server:
+        condition: service_started
+      mysql-db:
+        condition: service_healthy
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://naming-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD}
+
+  orders-service:
+    image: aditya2254/e-commerce-orders-service:0.0.15-SNAPSHOT
+    container_name: orders-service
+    mem_limit: 700m
+    ports:
+      - "8100:8100"
+    networks:
+      - e-commerce-network
+    depends_on:
+      naming-server:
+        condition: service_started
+      mysql-db:
+        condition: service_healthy
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://naming-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD}
+
+  user-service:
+    image: aditya2254/e-commerce-user-service:0.0.15-SNAPSHOT
+    container_name: user-service
+    mem_limit: 700m
+    ports:
+      - "8110:8110"
+    networks:
+      - e-commerce-network
+    depends_on:
+      naming-server:
+        condition: service_started
+      mysql-db:
+        condition: service_healthy
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://naming-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+
+  cloud-gateway:
+    image: aditya2254/e-commerce-cloud-gateway:0.0.12-SNAPSHOT
+    container_name: cloud-gateway
+    mem_limit: 700m
+    ports:
+      - "8150:8150"
+    networks:
+      - e-commerce-network
+    depends_on:
+      - naming-server
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://naming-server:8761/eureka/
+
+networks:
+  e-commerce-network:
+
+volumes:
+  mysql-data: {}
