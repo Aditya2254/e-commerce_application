@@ -2,7 +2,6 @@ package com.aditya2254.ecommerceapp.ordersservice.services;
 
 import com.aditya2254.ecommerceapp.ordersservice.ProductClient;
 import com.aditya2254.ecommerceapp.ordersservice.dataaccess.CustomResponse;
-import com.aditya2254.ecommerceapp.ordersservice.dataaccess.OrderItemRequest;
 import com.aditya2254.ecommerceapp.ordersservice.dto.InventoryReservationRequest;
 import com.aditya2254.ecommerceapp.ordersservice.entity.Orders;
 import com.aditya2254.ecommerceapp.ordersservice.entity.OrderItems;
@@ -10,7 +9,6 @@ import com.aditya2254.ecommerceapp.ordersservice.repositories.OrderItemsReposito
 import com.aditya2254.ecommerceapp.ordersservice.repositories.OrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
