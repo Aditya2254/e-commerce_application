@@ -6,6 +6,7 @@ import com.aditya2254.ecommerceapp.ordersservice.dataaccess.OrderRequest;
 import com.aditya2254.ecommerceapp.ordersservice.dataaccess.OrderResponse;
 import com.aditya2254.ecommerceapp.ordersservice.dto.InventoryReservationRequest;
 import com.aditya2254.ecommerceapp.ordersservice.dto.ProductDTO;
+import com.aditya2254.ecommerceapp.ordersservice.entity.CartItems;
 import com.aditya2254.ecommerceapp.ordersservice.entity.Orders;
 import com.aditya2254.ecommerceapp.ordersservice.entity.OrderItems;
 import com.aditya2254.ecommerceapp.ordersservice.services.OrderService;
@@ -36,6 +37,63 @@ public class OrderController {
     @Autowired
     private OrdersRepository ordersRepository;
 
+    @PostMapping(path = "/cart/remove")
+    public ResponseEntity<CustomResponse> removeFromCart(
+            @RequestBody OrderItemRequest orderItemRequest,
+            @RequestHeader("X-User-ID") String userId){
+        try {
+            orderService.removeFromCart(orderItemRequest, userId);
+            return ResponseEntity.ok(new CustomResponse<>("Product removed from cart successfully"));
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(
+                    toCustomResponse(e.getReason())
+            );
+        } catch (FeignException e) {
+            String responseBody = e.contentUTF8();
+            int status = e.status();
+            return ResponseEntity.status(status).body(
+                    toCustomResponse((responseBody != null && !responseBody.isBlank())
+                            ? responseBody
+                            : "Downstream service error")
+            );
+        }
+    }
+
+@PostMapping(path = "/cart/add")
+public ResponseEntity<CustomResponse> addToCart(
+        @RequestBody OrderItemRequest orderItemRequest,
+        @RequestHeader("X-User-ID") String userId) {
+    try {
+        var result = orderService.addToCart(orderItemRequest, userId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new CustomResponse<ProductDTO>("Product added to cart successfully", result));
+    } catch (ResponseStatusException e) {
+        return ResponseEntity.status(e.getStatusCode()).body(
+                toCustomResponse(e.getReason())
+        );
+    } catch (FeignException e) {
+        String responseBody = e.contentUTF8();
+        int status = e.status();
+        return ResponseEntity.status(status).body(
+                toCustomResponse((responseBody != null && !responseBody.isBlank())
+                        ? responseBody
+                        : "Downstream service error")
+        );
+    }
+}
+
+@GetMapping(path = "/cart")
+public ResponseEntity<List<CartItems>> getCartItems(@RequestHeader("X-User-ID") String userId) {
+    try {
+        List<CartItems> cartItems = orderService.getCartItems(userId);
+        if (cartItems.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(cartItems);
+        }
+        return ResponseEntity.ok(cartItems);
+    }catch (Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+    }
+}
+
     // OrderController.java
     @PostMapping(path = "/orders")
     public ResponseEntity<OrderResponse> createOrder(
@@ -44,24 +102,41 @@ public class OrderController {
 
         // 1. Verify products exist and get prices
             List<OrderItems> orderItems;
-            List<OrderItemRequest> currentItem = new java.util.ArrayList<>();
+            List<OrderItemRequest> lstRequestItems = new java.util.ArrayList<>();
                     try{
-                        orderItems = request.getItems().stream()
-                        .map(item -> {
-                            currentItem.add(item);
-                            ProductDTO product = productClient.getProduct(item.getProductId());
-                            return new OrderItems(product.id(), item.getQuantity(), product.price());
-                        }).toList();
+                        if(request.getItems().isEmpty()){   //if the items are empty, take it from cart
+                            List<CartItems> cartItems = orderService.getCartItems(userId);
+                            if(cartItems.isEmpty()){
+                                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(toResponse(null, "failed", "Cart is empty"));
+                            }
+                            orderItems = cartItems.stream()
+                                    .map(item -> {
+                                        lstRequestItems.add(new OrderItemRequest(item.getProductId(), item.getQuantity()));
+                                        ProductDTO product = productClient.getProduct(item.getProductId());
+                                        return new OrderItems(product.id(), item.getQuantity(), product.price());
+                                    }).toList();
+                        }else {     // if they are not empty, take it from the request
+                            orderItems = request.getItems().stream()
+                            .map(item -> {
+                                lstRequestItems.add(item);
+                                ProductDTO product = productClient.getProduct(item.getProductId());
+                                return new OrderItems(product.id(), item.getQuantity(), product.price());
+                            }).toList();
+
+                        }
                     }catch (FeignException e){
                         return ResponseEntity.status(e.status()).body(toResponse(null,
                                 "failed",
-                                "Error: Product not found for id: %s".formatted(currentItem.isEmpty() ? "null" : currentItem.get(currentItem.size() - 1).getProductId().toString())));
+                                "Error: Product not found for id: %s".formatted(lstRequestItems.isEmpty() ? "null" : lstRequestItems.get(lstRequestItems.size() - 1).getProductId().toString())));
+                    }catch (ResponseStatusException e){
+                        return ResponseEntity.status(e.getStatusCode()).body(toResponse(null, "failed", e.getReason()));
+                    } catch (Exception e) {
+                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(toResponse(null, "failed", "An unexpected error occurred: " + e.getMessage()));
                     }
 
         // 2. Reserve inventory
         InventoryReservationRequest reservationRequest = new InventoryReservationRequest(
-                request.getItems().stream()
-                        .collect(Collectors.toMap(OrderItemRequest::getProductId, OrderItemRequest::getQuantity))
+                orderItems.stream().collect(Collectors.toMap( OrderItems::getProductId, OrderItems::getQuantity))
         );
         try {
             CustomResponse responseEntity = productClient.reserveInventory(reservationRequest);
@@ -118,6 +193,16 @@ public class OrderController {
         return ordersRepository.findById(orderId).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    //create a get mapping for getting orderItems by orderId
+    @GetMapping(path = "/orderItems/{id}")
+    public ResponseEntity<List<OrderItems>> getOrderItemsById(@PathVariable("id") Long orderId) {
+        List<OrderItems> orderItems = orderService.getOrderItemsByOrderId(orderId);
+        if (orderItems.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(orderItems);
+    }
+
     private OrderResponse toResponse(Orders orders, String status, String message) {
         OrderResponse resp = new OrderResponse();
         resp.setOrderId((orders!=null)?orders.getOrderId():null);
@@ -125,6 +210,12 @@ public class OrderController {
         resp.setStatus(status);
         resp.setMessage(message);
         return resp;
+    }
+
+    private CustomResponse<String> toCustomResponse(String message) {
+        CustomResponse<String> response = new CustomResponse<>();
+        response.setMessage(message);
+        return response;
     }
 
 

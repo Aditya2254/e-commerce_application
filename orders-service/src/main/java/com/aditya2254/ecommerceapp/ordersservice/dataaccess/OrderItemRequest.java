@@ -4,6 +4,11 @@ public class OrderItemRequest {
     private Long productId;
     private Integer quantity;
 
+    public OrderItemRequest(Long productId, Integer quantity) {
+        this.productId = productId;
+        this.quantity = quantity;
+    }
+
     // Getters and setters
     public Long getProductId() { return productId; }
     public void setProductId(Long productId) { this.productId = productId; }

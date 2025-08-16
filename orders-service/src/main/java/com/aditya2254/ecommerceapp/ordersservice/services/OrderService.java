@@ -2,14 +2,20 @@ package com.aditya2254.ecommerceapp.ordersservice.services;
 
 import com.aditya2254.ecommerceapp.ordersservice.ProductClient;
 import com.aditya2254.ecommerceapp.ordersservice.dataaccess.CustomResponse;
+import com.aditya2254.ecommerceapp.ordersservice.dataaccess.OrderItemRequest;
 import com.aditya2254.ecommerceapp.ordersservice.dto.InventoryReservationRequest;
+import com.aditya2254.ecommerceapp.ordersservice.dto.ProductDTO;
+import com.aditya2254.ecommerceapp.ordersservice.entity.CartItems;
 import com.aditya2254.ecommerceapp.ordersservice.entity.Orders;
 import com.aditya2254.ecommerceapp.ordersservice.entity.OrderItems;
+import com.aditya2254.ecommerceapp.ordersservice.repositories.CartItemsRepository;
 import com.aditya2254.ecommerceapp.ordersservice.repositories.OrderItemsRepository;
 import com.aditya2254.ecommerceapp.ordersservice.repositories.OrderRepository;
+import feign.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -25,6 +31,39 @@ public class OrderService {
     OrderItemsRepository orderItemsRepository;
     @Autowired
     private ProductClient productClient;
+    @Autowired
+    private CartItemsRepository cartItemsRepository;
+
+    public ProductDTO addToCart(
+            OrderItemRequest orderItem,
+            String userId) {
+        ProductDTO product;
+        try{
+            product = productClient.getProduct(orderItem.getProductId());
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to get product details");
+        }
+        /*     already doing this at the time of order creation
+        if (product.stock() < orderItem.getQuantity()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient stock for product: " + product.name());
+        }*/
+        // Check if the product is already in the cart
+        List<CartItems> existingItems = cartItemsRepository.findByUserIdAndProductId(userId, orderItem.getProductId());
+        if(existingItems.isEmpty()) {
+            CartItems cartItem = new CartItems();
+            cartItem.setUserId(userId);
+            cartItem.setProductId(orderItem.getProductId());
+            cartItem.setQuantity(orderItem.getQuantity());
+            cartItem.setPrice(product.price());
+            cartItemsRepository.saveAndFlush(cartItem);
+        } else {
+            // If the product is already in the cart, update the quantity
+            CartItems existingCartItem = existingItems.get(0);
+            existingCartItem.setQuantity(existingCartItem.getQuantity() + orderItem.getQuantity());
+            cartItemsRepository.saveAndFlush(existingCartItem);
+        }
+        return product;
+    }
 
 
     public Orders createOrder(String userId, List<OrderItems> orderItems, String shippingAddress, String paymentMethodId) {
@@ -42,6 +81,7 @@ public class OrderService {
 
         orderItems.forEach(item -> item.setOrderId(savedOrders.getOrderId()));
         orderItemsRepository.saveAll(orderItems);
+        cartItemsRepository.deleteByUserId(userId);
 
         return savedOrders;
     }
@@ -77,5 +117,27 @@ public class OrderService {
 
         orderRepository.save(existingOrder);
         return existingOrder;
+    }
+
+    public List<CartItems> getCartItems(String userId) {
+        return cartItemsRepository.findByUserId(userId);
+    }
+
+    public List<OrderItems> getOrderItemsByOrderId(Long orderId) {
+        return orderItemsRepository.findByOrderId(orderId);
+    }
+
+    public void removeFromCart(OrderItemRequest orderItemRequest, String userId) {
+        List<CartItems> existingItems = cartItemsRepository.findByUserIdAndProductId(userId, orderItemRequest.getProductId());
+        if (existingItems.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Item not found in cart");
+        }
+        CartItems cartItem = existingItems.get(0);
+        if (cartItem.getQuantity() <= orderItemRequest.getQuantity()) {
+            cartItemsRepository.delete(cartItem);
+        } else {
+            cartItem.setQuantity(cartItem.getQuantity() - orderItemRequest.getQuantity());
+            cartItemsRepository.save(cartItem);
+        }
     }
 }
