@@ -32,7 +32,7 @@ services:
       - e-commerce-network
 
   product-service:
-    image: aditya2254/e-commerce-product-service:0.0.15-SNAPSHOT
+    image: aditya2254/e-commerce-product-service:0.0.18-SNAPSHOT
     container_name: product-service
     mem_limit: 700m
     ports:
@@ -44,14 +44,24 @@ services:
         condition: service_started
       mysql-db:
         condition: service_healthy
+      minio:
+        condition: service_started
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://naming-server:8761/eureka/
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=${MYSQL_USER}
       - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD}
+      # MinIO / S3 configuration used by the product-service
+      - APP_IMAGES_S3_BUCKET=${APP_IMAGES_S3_BUCKET}
+      - APP_IMAGES_S3_REGION=${APP_IMAGES_S3_REGION}
+      - APP_IMAGES_S3_ENDPOINT=${APP_IMAGES_S3_ENDPOINT}
+      - APP_IMAGES_S3_PATH_STYLE_ACCESS=${APP_IMAGES_S3_PATH_STYLE_ACCESS}
+      - APP_IMAGES_S3_PUBLIC_BASE_URL=${APP_IMAGES_S3_PUBLIC_BASE_URL}
+      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
+      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
 
   orders-service:
-    image: aditya2254/e-commerce-orders-service:0.0.15-SNAPSHOT
+    image: aditya2254/e-commerce-orders-service:0.0.16-SNAPSHOT
     container_name: orders-service
     mem_limit: 700m
     ports:
@@ -70,7 +80,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD}
 
   user-service:
-    image: aditya2254/e-commerce-user-service:0.0.15-SNAPSHOT
+    image: aditya2254/e-commerce-user-service:0.0.16-SNAPSHOT
     container_name: user-service
     mem_limit: 700m
     ports:
@@ -90,7 +100,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
 
   cloud-gateway:
-    image: aditya2254/e-commerce-cloud-gateway:0.0.12-SNAPSHOT
+    image: aditya2254/e-commerce-cloud-gateway:0.0.14-SNAPSHOT
     container_name: cloud-gateway
     mem_limit: 700m
     ports:
@@ -101,6 +111,27 @@ services:
       - naming-server
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://naming-server:8761/eureka/
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - /mnt/mydisk/share/projects/product-images:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - e-commerce-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   e-commerce-network:
