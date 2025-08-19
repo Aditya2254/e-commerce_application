@@ -24,7 +24,8 @@ public class GlobalAuthFilter implements GlobalFilter, Ordered {
             "/user-service/api/auth/login",
             "/user-service/api/auth/refresh",
             "/user-service/api/auth/validate",
-            "/user-service/api/users/profile"
+            "/user-service/api/users/profile",
+            "/product-service/products"
     };
 
     public GlobalAuthFilter(TokenValidationService tokenValidationService) {

@@ -5,7 +5,7 @@ import com.aditya2254.ecommerceapp.productservice.dto.StockUpdateRequest;
 import com.aditya2254.ecommerceapp.productservice.entity.Product;
 import com.aditya2254.ecommerceapp.productservice.exceptions.InsufficientStockException;
 import com.aditya2254.ecommerceapp.productservice.exceptions.ProductNotFoundException;
-import com.aditya2254.ecommerceapp.productservice.repositories.ProductRepository;
+import com.aditya2254.ecommerceapp.productservice.service.ProductService;
 import com.aditya2254.ecommerceapp.productservice.response.CustomResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -14,55 +14,120 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+/**
+ * Controller for handling product operations.
+ */
 @RestController
 public class ProductController {
 
-    @Autowired
-    ProductRepository productRepository;
+    private final ProductService productService;
 
+    @Autowired
+    public ProductController(ProductService productService) {
+        this.productService = productService;
+    }
+
+    /**
+     * Get all products without images.
+     *
+     * @return List of all products
+     */
     @GetMapping(path = "/products")
     public ResponseEntity<List<Product>> getProducts() {
-        return ResponseEntity.ok(productRepository.findAll());
+        return ResponseEntity.ok(productService.getAllProducts());
     }
 
+    /**
+     * Get all products with their images.
+     *
+     * @return Map containing products and their images
+     */
+    @GetMapping(path = "/products/with-images")
+    public ResponseEntity<Map<String, Object>> getProductsWithImages() {
+        return ResponseEntity.ok(productService.getAllProductsWithImages());
+    }
+
+    /**
+     * Get a product by ID without images.
+     *
+     * @param id Product ID
+     * @return Product if found
+     */
     @GetMapping(path = "/products/{id}")
     public ResponseEntity<Product> getProduct(@PathVariable Long id) {
-        return productRepository.findById(id)
+        return productService.getProductById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
-        /*Optional<Product> product = productRepository.findById(id);
-        if (product.isPresent()) {
-            return buildCustomResponse("Success: Product found", product.get(), HttpStatus.OK);
-        } else {
-            return buildCustomResponse("Error: Product not found for productId: %d".formatted(id), HttpStatus.NOT_FOUND);
-        }*/
     }
 
+    /**
+     * Get a product by ID with its images.
+     *
+     * @param id Product ID
+     * @return Map containing the product and its images
+     */
+    @GetMapping(path = "/products/{id}/with-images")
+    public ResponseEntity<Map<String, Object>> getProductWithImages(@PathVariable Long id) {
+        try {
+            Map<String, Object> result = productService.getProductWithImagesById(id);
+            return ResponseEntity.ok(result);
+        } catch (ProductNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 
-    @PostMapping(path = "/products")
+    /**
+     * Add a new product.
+     *
+     * @param product Product to add
+     * @return Success response with the added product
+     */
+    @PostMapping(path = "/api/products")
     public ResponseEntity<CustomResponse> addProduct(@RequestBody Product product) {
-        productRepository.save(product);
-        return buildCustomResponse("Product added successfully", product, HttpStatus.CREATED);
+        Product savedProduct = productService.saveProduct(product);
+        return buildCustomResponse("Product added successfully", savedProduct, HttpStatus.CREATED);
     }
 
-    @DeleteMapping(path = "/products/{id}")
+    /**
+     * Delete a product and all its images.
+     *
+     * @param id Product ID
+     * @return Success response
+     */
+    @DeleteMapping(path = "/api/products/{id}")
     public ResponseEntity<CustomResponse> deleteProduct(@PathVariable Long id) {
-        productRepository.deleteById(id);
-        return buildCustomResponse("Product deleted successfully", HttpStatus.OK);
+        try {
+            productService.deleteProduct(id);
+            return buildCustomResponse("Product deleted successfully", HttpStatus.OK);
+        } catch (ProductNotFoundException e) {
+            return buildCustomResponse("Product not found", HttpStatus.NOT_FOUND);
+        }
     }
 
-    @PutMapping("/products/{id}/stock")
+    /**
+     * Update product stock.
+     *
+     * @param id Product ID
+     * @param request Stock update request
+     * @return Updated product
+     */
+    @PutMapping("/api/products/{id}/stock")
     public ResponseEntity<Product> updateStock(@PathVariable Long id, @RequestBody StockUpdateRequest request) {
-        return productRepository.findById(id)
-                .map(existingProduct -> {
-                    existingProduct.setStock(request.getStock());
-                    productRepository.save(existingProduct);
-                    return ResponseEntity.ok(existingProduct);
-                })
-                .orElse(ResponseEntity.notFound().build());
+        try {
+            Product updatedProduct = productService.updateStock(id, request.getStock());
+            return ResponseEntity.ok(updatedProduct);
+        } catch (ProductNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
-    @PostMapping("/products/reserve")
+    /**
+     * Reserve inventory for products.
+     *
+     * @param request Inventory reservation request
+     * @return Success response
+     */
+    @PostMapping("/api/products/reserve")
     public ResponseEntity<CustomResponse> reserveInventory(@RequestBody InventoryReservationRequest request) {
         if (request.items().isEmpty()) {
             return buildCustomResponse("No items to reserve", HttpStatus.BAD_REQUEST);
@@ -73,7 +138,7 @@ public class ProductController {
                 Long key = entry.getKey();
                 productId = key;
                 Integer value = entry.getValue();
-                reserveProductInventory(key, value);
+                productService.reserveProductInventory(key, value);
             }
             return buildCustomResponse("Success: Inventory reserved successfully", HttpStatus.OK);
         } catch (ProductNotFoundException e) {
@@ -85,14 +150,20 @@ public class ProductController {
         }
     }
 
-    @PostMapping("/products/rollback")
+    /**
+     * Roll back inventory reservation.
+     *
+     * @param request Inventory rollback request
+     * @return Success response
+     */
+    @PostMapping("/api/products/rollback")
     public ResponseEntity<CustomResponse> rollbackInventory(@RequestBody InventoryReservationRequest request) {
         if (request.items().isEmpty()) {
             return buildCustomResponse("No items to rollback", HttpStatus.BAD_REQUEST);
         }
         try {
             for (Map.Entry<Long, Integer> entry : request.items().entrySet()) {
-                rollBackInventory(entry.getKey(), entry.getValue());
+                productService.rollBackInventory(entry.getKey(), entry.getValue());
             }
             return buildCustomResponse("Success: Inventory rolled back successfully", HttpStatus.OK);
         } catch (ProductNotFoundException e) {
@@ -100,30 +171,13 @@ public class ProductController {
         }
     }
 
-    private void reserveProductInventory(Long productId, Integer quantity) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(ProductNotFoundException::new);
-        if (product.getStock() < quantity) {
-            throw new InsufficientStockException();
-        }
-        product.setStock(product.getStock() - quantity);
-        productRepository.save(product);
-    }
-
     private void rollbackFailedItems(Set<Map.Entry<Long, Integer>> entries, Long productId) {
-        for (Map.Entry<Long, Integer> entry : entries){
+        for (Map.Entry<Long, Integer> entry : entries) {
             if (productId.equals(entry.getKey())) {
                 break;
             }
-            rollBackInventory(entry.getKey(), entry.getValue());
+            productService.rollBackInventory(entry.getKey(), entry.getValue());
         }
-    }
-
-    private void rollBackInventory(Long productId, Integer quantity) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(ProductNotFoundException::new);
-        product.setStock(product.getStock() + quantity);
-        productRepository.save(product);
     }
 
     private <T> ResponseEntity<CustomResponse> buildCustomResponse(String message, T data, HttpStatus status) {
@@ -133,5 +187,4 @@ public class ProductController {
     private ResponseEntity<CustomResponse> buildCustomResponse(String message, HttpStatus status) {
         return ResponseEntity.status(status).body(new CustomResponse<>(message));
     }
-
 }
